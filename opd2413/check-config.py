@@ -6,6 +6,10 @@ config = dict(line.split('=', 1) for line in Path(sys.argv[1]).read_text().split
               if line.startswith('CONFIG_') and '=' in line)
 required = {
     'KSU': 'y', 'KPM': 'y', 'KSU_SUSFS': 'y', 'KSU_SUSFS_PRIORITY_UID_FILTER': 'y',
+    'KSU_SUSFS_SUS_PATH': 'y', 'KSU_SUSFS_SUS_MOUNT': 'y',
+    'KSU_SUSFS_SUS_KSTAT': 'y', 'KSU_SUSFS_SUS_MAP': 'y',
+    'KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS': 'y',
+    'KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG': 'y',
     'NETFILTER': 'y', 'IP_SET': 'y', 'IP6_NF_NAT': 'y',
     'IP6_NF_TARGET_MASQUERADE': 'y', 'TCP_CONG_BBR3': 'y',
     'SYSVIPC': 'y', 'PID_NS': 'y', 'IPC_NS': 'y', 'POSIX_MQUEUE': 'y',
