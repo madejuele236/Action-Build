@@ -6,7 +6,7 @@ on:
         type: choice
         description: "配置文件//Configuration file"
         required: true
-        default: oneplus_15
+        default: oneplus_pad_2_pro_b
         options:
           - oneplus_nord_n30_se_5g_v
           - oneplus_10r_v
@@ -97,7 +97,7 @@ on:
         type: string
         description: "自定义构建时间(输入F使用UTCT或-1关闭)//Custom build time (Enter F to use UTCT, or -1 to disable)"
         required: false
-        default: "Wed Jul 15 11:18:49 UTC 2026"
+        default: "-1"
       KSU_META:
         type: string
         description: "管理器分支名(必填)/内置分支名(必填)/自定义版本标识(留空不修改)/回退分支提交哈希版本(留空不修改)//Manager Branch name (Required) / Builtin branch name (Required) / Custom version identifier (Leave blank to not modify) / Rollback branch commit hash version (Leave blank to not modify)"
@@ -108,6 +108,11 @@ on:
         description: "是否升级LZ4到上游最新？//Upgrade LZ4 to the latest upstream?"
         required: true
         default: false
+      ZRAM_BUILD:
+        type: boolean
+        description: "Compile optional ZRAM codecs and modules without deploying them"
+        required: true
+        default: true
       ZRAM:
         type: string
         description: "ZRAM(0关闭1开启)/算法名/大小//ZRAM (0: disable, 1: enable) / Algorithm name / Size"
@@ -131,7 +136,7 @@ on:
         type: boolean
         description: "是否启用关键分区写入保护模块(BBG)？//Enable critical partition write protection module (BBG)?"
         required: true
-        default: true
+        default: false
       NETFILTER:
         type: boolean
         description: "是否启用网络功能拓展(NETFILTER)？//Enable network feature extensions (NETFILTER)?"
@@ -156,7 +161,7 @@ on:
         type: boolean
         description: "是否添加轻量级Linux容器支持(DroidSpaces)？//Add lightweight Linux container support (DroidSpaces)?"
         required: true
-        default: false
+        default: true
       RE_KERNEL:
         type: boolean
         description: "是否添加Re-Kernel？//Add Re-Kernel?"
@@ -209,31 +214,9 @@ jobs:
           git config --global user.email "263623064@qq.com"
           mkdir kernel_workspace && cd kernel_workspace
 
-          UPSTREAM_REPO="Numbersf/Action-Build"
-          UPSTREAM_BRANCH="SukiSU-Ultra"
-          SELF_REPO="${{ github.repository }}"
-          SELF_BRANCH="${{ github.ref_name }}"
-
-          USE_REPO="$UPSTREAM_REPO"
-          USE_BRANCH="$UPSTREAM_BRANCH"
-
-          if [ "${SELF_REPO,,}" != "${UPSTREAM_REPO,,}" ]; then
-            git clone --filter=blob:none --no-checkout "https://github.com/${SELF_REPO}.git" -b "$SELF_BRANCH" probe
-            cd probe
-            git remote add upstream "https://github.com/${UPSTREAM_REPO}.git"
-            git fetch --filter=blob:none upstream "$UPSTREAM_BRANCH"
-
-            AHEAD=$(git rev-list --no-merges --count "upstream/${UPSTREAM_BRANCH}..HEAD")
-            echo "fork 独有的非 Merge 提交数: $AHEAD"
-
-            if [ "$AHEAD" -gt 0 ]; then
-              USE_REPO="$SELF_REPO"
-              USE_BRANCH="$SELF_BRANCH"
-            fi
-            cd .. && rm -rf probe
-          fi
-          echo "使用仓库: $USE_REPO @ $USE_BRANCH"
-          git clone "https://github.com/${USE_REPO}.git" -b "$USE_BRANCH" Action-Build
+          git -C "$GITHUB_WORKSPACE" archive HEAD | tar -x -C .
+          mkdir Action-Build
+          cp -a patches scripts lib ZRAM.zip opd2413 Action-Build/
 
       - name: Extract Manifest Info
         id: extract_info
@@ -492,6 +475,7 @@ jobs:
           echo "使用$MANIFEST_REPO/$MANIFEST_REPO_NAME($MANIFEST_BRANCH)初始化仓库..."
           repo init -u "$BASE_URL" -b "$MANIFEST_BRANCH" -m "${FILE}.xml" --depth=1 --no-clone-bundle --no-tags
           sed -i -e '/prebuilts\/asuite"/{/ks-kernel\.lnx\.5\.0\.r3-rel/d}' -e '/tools\/tradefederation\/prebuilts"/{/ks-kernel\.lnx\.5\.0\.r3-rel/d}' ".repo/manifests/${FILE}.xml"
+          python3 "$GITHUB_WORKSPACE/opd2413/pin-manifest.py" ".repo/manifests/${FILE}.xml"
           repo sync -c -j$(nproc) --no-clone-bundle --no-tags --force-sync
 
           KERNEL_REPOS=""
@@ -793,7 +777,7 @@ jobs:
             cp ../susfs4ksu/kernel_patches/include/linux/* ./common/include/linux/
           fi
 
-          if [[ "${{ github.event.inputs.ZRAM }}" == 1* ]]; then
+          if [[ "${{ github.event.inputs.ZRAM_BUILD }}" == "true" || "${{ github.event.inputs.ZRAM }}" == 1* ]]; then
             echo "正在拉取zram补丁"
             cp -r ../SukiSU_patch/other/zram/lz4k/include/linux/* ./common/include/linux/
             cp -r ../SukiSU_patch/other/zram/lz4k/lib/* ./common/lib/
@@ -955,31 +939,19 @@ jobs:
           . "${LZ4_REPO}/apply_lz4_oplus.sh"
 
       - name: Apply ZRAM
-        if: startsWith(github.event.inputs.ZRAM, '1/')
+        if: github.event.inputs.ZRAM_BUILD == 'true' || startsWith(github.event.inputs.ZRAM, '1/')
+        env:
+          ZRAM_INPUT: ${{ github.event.inputs.ZRAM }}
         run: |
-          ZRAM="${{ github.event.inputs.ZRAM }}"
-          if [[ "$(grep -o '/' <<< "$ZRAM" | wc -l)" -lt 2 ]]; then
-            echo "错误: ZRAM 参数缺少必要的分隔符 '/'，格式应为: 总开关0关1开/算法名(前面输入0时无效)/大小(前面输入0时无效)"
-            exit 10
+          IFS='/' read -r ZRAM_SWSTA ZRAM_ALGO ZRAM_SIZE <<< "$ZRAM_INPUT"
+          echo "ZRAM_ALGO=$ZRAM_ALGO" >> "$GITHUB_ENV"
+          echo "ZRAM_SIZE=$ZRAM_SIZE" >> "$GITHUB_ENV"
+          if [[ "$ZRAM_SWSTA" == 1 ]]; then
+            echo "ZRAM_ALGO_U=${ZRAM_ALGO^^}" >> "$GITHUB_ENV"
           fi
-          # 解析字段：开关状态 / 算法名 / 大小
-          IFS='/' read -r ZRAM_SWSTA ZRAM_ALGO ZRAM_SIZE <<< "$ZRAM"
-          echo "ZRAM_ALGO=$ZRAM_ALGO" >> $GITHUB_ENV
-          echo "ZRAM_ALGO_U=${ZRAM_ALGO^^}" >> $GITHUB_ENV
-          echo "ZRAM_SIZE=$ZRAM_SIZE" >> $GITHUB_ENV
-
-          PATCH_DIR="${GITHUB_WORKSPACE}/kernel_workspace/SukiSU_patch/other/zram/zram_patch/${{ env.KERNEL_VERSION }}"
           cd kernel_workspace/kernel_platform/common
-          if [[ "$KERNEL_VERSION" == "5.10" && "${CPU}" == mt* ]]; then
-            sed -i 's/select CRYPTO_LZO/depends on CRYPTO_LZO/' ./mm/oplus_mm/hybridswap_zram/Kconfig
-          fi
-          echo "正在打lz4kd补丁"
-          patch -p1 -F 3 < "${PATCH_DIR}/lz4kd.patch" || true
-          echo 'lz4kd_patch完成'
-          echo "正在打lz4k_oplus补丁"
-          patch -p1 -F 3 < "${PATCH_DIR}/lz4k_oplus.patch" || true
-          echo 'lz4k_oplus_patch完成'
-          source $REJ_CHECKER
+          python3 "$GITHUB_WORKSPACE/opd2413/patch-zram.py" "../../SukiSU_patch/other/zram/zram_patch/$KERNEL_VERSION"
+          source "$REJ_CHECKER"
           check_rejects .
 
       - name: Apply SCHED_HMBIRD
@@ -1105,9 +1077,6 @@ jobs:
             set_config "CONFIG_TCP_CONG_BIC=n"
             set_config "CONFIG_TCP_CONG_WESTWOOD=n"
             set_config "CONFIG_TCP_CONG_HTCP=n"
-            set_config "CONFIG_IP_ECN=y"
-            set_config "CONFIG_TCP_ECN=y"
-            set_config "CONFIG_IPV6_ECN=y"
             set_config "CONFIG_IP_NF_TARGET_ECN=y"
           fi
 
@@ -1118,12 +1087,12 @@ jobs:
           fi
 
           # ZRAM配置*
-          if [[ "${{ github.event.inputs.ZRAM }}" == 1* ]]; then
-            set_config "CONFIG_CRYPTO_LZ4HC=y"
-            set_config "CONFIG_CRYPTO_LZ4K=y"
-            set_config "CONFIG_CRYPTO_LZ4KD=y"
-            set_config "CONFIG_CRYPTO_842=y"
-            set_config "CONFIG_CRYPTO_LZ4K_OPLUS=y"
+          if [[ "${{ github.event.inputs.ZRAM_BUILD }}" == "true" || "${{ github.event.inputs.ZRAM }}" == 1* ]]; then
+            set_config "CONFIG_CRYPTO_LZ4HC=m"
+            set_config "CONFIG_CRYPTO_LZ4K=m"
+            set_config "CONFIG_CRYPTO_LZ4KD=m"
+            set_config "CONFIG_CRYPTO_842=m"
+            set_config "CONFIG_CRYPTO_LZ4K_OPLUS=m"
             set_config "CONFIG_ZRAM_WRITEBACK=y"
           fi
 
@@ -1143,7 +1112,8 @@ jobs:
             set_config "CONFIG_USER_NS=y"
             set_config "CONFIG_NAMESPACES=y"
             set_config "CONFIG_POSIX_MQUEUE=y"
-            set_config "CONFIG_NETFILTER_XT_TARGET_REJECT=y"
+            set_config "CONFIG_IP_NF_TARGET_REJECT=y"
+            set_config "CONFIG_IP6_NF_TARGET_REJECT=y"
             set_config "CONFIG_NETFILTER_XT_TARGET_LOG=y"
             set_config "CONFIG_NETFILTER_XT_MATCH_RECENT=y"
           fi
@@ -1441,6 +1411,7 @@ jobs:
           fi
 
           make O=out "${MAKE_ARGS[@]}" olddefconfig --no-print-directory
+          python3 "$GITHUB_WORKSPACE/opd2413/check-config.py" out/.config
           make -j"$(nproc --all)" O=out "${MAKE_ARGS[@]}"
           ccache -s
 
@@ -1455,6 +1426,25 @@ jobs:
             LTO=thin SYSTEM_DLKM_RE_SIGN=0 BUILD_SYSTEM_DLKM=0 KMI_SYMBOL_LIST_STRICT_MODE=0 \
             ./kernel_platform/oplus/build/oplus_build_kernel.sh ${{ env.CPUD }} ${{ env.BUILD_METHOD }}
           fi
+
+      - name: Collect OPD2413 build evidence and optional modules
+        run: |
+          python3 opd2413/collect-build.py
+
+      - name: Upload build evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: OPD2413-build-evidence
+          path: opd2413-output/evidence/
+          if-no-files-found: error
+
+      - name: Upload optional ZRAM modules (no installer)
+        if: github.event.inputs.ZRAM_BUILD == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: OPD2413-optional-zram-modules-NOT-AUTO-INSTALLED
+          path: opd2413-output/optional-zram/
+          if-no-files-found: error
 
       - name: Make AnyKernel3
         run: |
