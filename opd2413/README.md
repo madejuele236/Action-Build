@@ -51,3 +51,10 @@ CodeLinaro dependency revisions are preserved in `source-transports.json`.
 prebuilt projects use CodeLinaro commit archives. Clang remains r510928 from
 the original b099698c commit, with only its used version directory extracted.
 This changes download transport, not the kernel or compiler revision.
+
+## Optional codec module linkage
+
+LZ4KD's delta encoder calls internal helpers from its base encoder. The two
+objects are linked into one `lz4kd_compress.ko`; upstream's separate-module
+layout failed modpost when these optional codecs were configured as modules.
+This preserves modular deployment without exporting the internal helpers.

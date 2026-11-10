@@ -1452,6 +1452,7 @@ jobs:
         with:
           name: OPD2413-build-evidence
           path: opd2413-output/evidence/
+          include-hidden-files: true
           if-no-files-found: error
 
       - name: Upload optional ZRAM modules (no installer)

@@ -25,4 +25,14 @@ if count != 1:
 kconfig.write_text(updated)
 if Path('kernel/module/main.c').read_bytes() != module_loader:
     raise SystemExit('ZRAM patch unexpectedly modified the module loader')
+# The delta encoder calls internal helpers in the base encoder. Keep both in
+# one module so those helpers need not become globally exported kernel APIs.
+codec_makefile = Path('lib/lz4kd/Makefile')
+codec_make = codec_makefile.read_text()
+old = 'obj-$(CONFIG_LZ4KD_COMPRESS) += lz4kd_encode.o lz4kd_encode_delta.o'
+new = ('obj-$(CONFIG_LZ4KD_COMPRESS) += lz4kd_compress.o\n'
+       'lz4kd_compress-y := lz4kd_encode.o lz4kd_encode_delta.o')
+if codec_make.count(old) != 1:
+    raise SystemExit('Unexpected LZ4KD Makefile; review the module linkage')
+codec_makefile.write_text(codec_make.replace(old, new))
 print('Preserved ZRAM default:', default)
