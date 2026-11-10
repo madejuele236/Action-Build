@@ -1136,7 +1136,11 @@ jobs:
 
           # IPSET & IPv6_NAT & TTL配置*
           if [ "${{ github.event.inputs.NETFILTER }}" = "true" ]; then
-            if [[ "$KERNEL_VERSION" != "6.12" && "${CPU}" != mt* ]]; then
+            if [[ "${{ github.event.inputs.FILE }}" == "oneplus_pad_2_pro_b" ]]; then
+              # Stock .400 disables this; enabling it changes sk_psock layout
+              # and breaks bluetooth.ko/tls.ko. IPSet/NAT/BBRv3 do not need it.
+              set_config "CONFIG_BPF_STREAM_PARSER=n"
+            elif [[ "$KERNEL_VERSION" != "6.12" && "${CPU}" != mt* ]]; then
               set_config "CONFIG_BPF_STREAM_PARSER=y"
             fi
             set_config "CONFIG_NETFILTER_XT_MATCH_ADDRTYPE=y"

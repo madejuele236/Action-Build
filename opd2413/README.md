@@ -58,3 +58,14 @@ LZ4KD's delta encoder calls internal helpers from its base encoder. The two
 objects are linked into one `lz4kd_compress.ko`; upstream's separate-module
 layout failed modpost when these optional codecs were configured as modules.
 This preserves modular deployment without exporting the internal helpers.
+
+## Stock module compatibility
+
+The first successful build was compared with all 1,068 module files extracted
+from the actual OPD2413 C.34 OTA. 1,066 matched; bluetooth.ko and tls.ko had 15
+CRC mismatches. The cause was upstream NETFILTER also enabling
+`CONFIG_BPF_STREAM_PARSER`, which stock disables and which changes sk_psock.
+Local compilation of the affected network objects reproduced all 15 mismatches;
+disabling that option restored all 15 original CRCs. This profile therefore keeps
+it off while retaining IPSet, IPv6 NAT and BBRv3. The complete rebuilt artifact
+must still be compared with the stock modules before device validation.

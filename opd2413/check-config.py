@@ -18,7 +18,7 @@ required = {
 }
 errors = [f'CONFIG_{key}: expected {value}, got {config.get("CONFIG_" + key, "n")}'
           for key, value in required.items() if config.get('CONFIG_' + key) != value]
-for key in ('REKERNEL', 'BBG', 'CFS_BANDWIDTH', 'CGROUP_PIDS'):
+for key in ('REKERNEL', 'BBG', 'CFS_BANDWIDTH', 'CGROUP_PIDS', 'BPF_STREAM_PARSER'):
     if config.get('CONFIG_' + key, 'n') != 'n':
         errors.append(f'CONFIG_{key} unexpectedly enabled')
 if errors:
