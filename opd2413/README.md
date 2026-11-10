@@ -42,3 +42,12 @@ The small Kconfig patch restores the definition from the official SUSFS patch,
 and the resolved-option check now includes it. Both component revisions are
 pinned in `components.json` and `inputs.json`; SUSFS_DEV remains false.
 Compilation caches are preserved after failures to reduce the cost of retries.
+
+## CodeLinaro transport outage
+
+The original Git service returned Gitaly unavailable in two runs. All 32
+CodeLinaro dependency revisions are preserved in `source-transports.json`.
+25 projects use GitHub mirrors containing the exact original commits; seven
+prebuilt projects use CodeLinaro commit archives. Clang remains r510928 from
+the original b099698c commit, with only its used version directory extracted.
+This changes download transport, not the kernel or compiler revision.

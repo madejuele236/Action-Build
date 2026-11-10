@@ -13,7 +13,7 @@ optional.mkdir(parents=True, exist_ok=True)
 subprocess.run(['python3', 'opd2413/check-config.py', str(out / '.config')], check=True)
 for name in ('.config', 'Module.symvers', 'System.map', 'include/config/kernel.release'):
     shutil.copy2(out / name, evidence / Path(name).name)
-for name in ('source-lock.json', 'components.json', 'inputs.json', 'README.md'):
+for name in ('source-lock.json', 'source-transports.json', 'components.json', 'inputs.json', 'README.md'):
     shutil.copy2(Path('opd2413') / name, evidence / name)
 with (evidence / 'source-changes.patch').open('w') as dest:
     subprocess.run(['git', '-C', str(common), 'diff'], stdout=dest, check=True)
