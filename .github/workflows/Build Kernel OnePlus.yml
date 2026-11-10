@@ -208,15 +208,20 @@ jobs:
           REMOVE_CODEQL: 'true'
         run: bash scripts/maximize-build-space.sh
 
+      - name: Checkout after build-volume mount
+        if: ${{ github.event.inputs.SPACE_NOCLEAN == 'false' }}
+        uses: actions/checkout@v7
+
       - name: Configure Git
         run: |
           git config --global user.name "Numbersf"
           git config --global user.email "263623064@qq.com"
           mkdir kernel_workspace && cd kernel_workspace
 
-          git -C "$GITHUB_WORKSPACE" archive HEAD | tar -x -C .
           mkdir Action-Build
-          cp -a patches scripts lib ZRAM.zip opd2413 Action-Build/
+          for item in patches scripts lib ZRAM.zip opd2413; do
+            cp -a "$GITHUB_WORKSPACE/$item" Action-Build/
+          done
 
       - name: Extract Manifest Info
         id: extract_info
