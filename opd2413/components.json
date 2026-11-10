@@ -1,0 +1,6 @@
+{
+  "SukiSU-Ultra/builtin": "1cfa57340590971cba7521ed536da8ebbedc5f0a",
+  "SUSFS/gki-android15-6.6": "ec03d0c73b821afa1d5037d6d493216f59744fcb",
+  "susfs_version": "2.4.0",
+  "integration_fix": "Restore priority UID filter Kconfig stanza from SUSFS kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch"
+}

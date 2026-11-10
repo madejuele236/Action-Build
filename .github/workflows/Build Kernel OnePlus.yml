@@ -87,7 +87,7 @@ on:
         type: string
         description: "回退SUSFS(输入哈希或次数或-1关闭)//Rollback SUSFS (Enter commit hash, count, or -1 to disable)"
         required: false
-        default: ""
+        default: "ec03d0c73b821afa1d5037d6d493216f59744fcb"
       DYNAMIC_REPO:
         type: string
         description: "动态清单仓库所有者//Manifest repository owner"
@@ -102,7 +102,7 @@ on:
         type: string
         description: "管理器分支名(必填)/内置分支名(必填)/自定义版本标识(留空不修改)/回退分支提交哈希版本(留空不修改)//Manager Branch name (Required) / Builtin branch name (Required) / Custom version identifier (Leave blank to not modify) / Rollback branch commit hash version (Leave blank to not modify)"
         required: false
-        default: "main/builtin/Numbersf/"
+        default: "main/builtin/Numbersf/1cfa57340590971cba7521ed536da8ebbedc5f0a"
       LZ4_UPDATE:
         type: boolean
         description: "是否升级LZ4到上游最新？//Upgrade LZ4 to the latest upstream?"
@@ -747,6 +747,11 @@ jobs:
           grep -nE '^(REPO_OWNER|REPO_NAME|REPO_BRANCH|KSU_VERSION_API|KSU_VERSION_FULL|VERSION_TAG|GIT_BIN|CURL_BIN)' kernel/Makefile
           echo "::endgroup::"
 
+      - name: Complete SUSFS stable Kconfig integration
+        run: |
+          cd kernel_workspace/kernel_platform/KernelSU
+          patch --batch -p1 < "$GITHUB_WORKSPACE/opd2413/susfs-priority-kconfig.patch"
+
       - name: Apply Patches SukiSU Ultra
         env:
           FILE: ${{ github.event.inputs.FILE }}
@@ -1056,6 +1061,7 @@ jobs:
             set_config "CONFIG_KSU_SUSFS=y"
             set_config "CONFIG_KSU_SUSFS_SUS_PATH=y"
             set_config "CONFIG_KSU_SUSFS_SUS_MAP=y"
+            set_config "CONFIG_KSU_SUSFS_PRIORITY_UID_FILTER=y"
             set_config "CONFIG_KSU_SUSFS_SUS_MOUNT=y"
             set_config "CONFIG_KSU_SUSFS_SUS_KSTAT=y"
             set_config "CONFIG_KSU_SUSFS_SPOOF_UNAME=y"
@@ -1624,7 +1630,7 @@ jobs:
           path: ZRAM-Module/*
 
       - name: Check Cache Size Before Save
-        if: ${{ github.event.inputs.BUILD_NOCACHE == 'false' }}
+        if: ${{ !cancelled() && github.event.inputs.BUILD_NOCACHE == 'false' && env.CCACHE_DIR != '' }}
         id: cache_size_check
         run: |
           check_size() {
@@ -1647,14 +1653,14 @@ jobs:
           check_size "${{ github.workspace }}/kernel_workspace/.thinlto-cache" "thinlto"
 
       - name: Save Ccache
-        if: ${{ github.event.inputs.BUILD_NOCACHE == 'false' && steps.cache_size_check.outputs.ccache_save == 'true' && steps.restore-ccache.outputs.cache-hit != 'true' }}
+        if: ${{ !cancelled() && github.event.inputs.BUILD_NOCACHE == 'false' && steps.cache_size_check.outputs.ccache_save == 'true' && steps.restore-ccache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@v5
         with:
           path: ${{ env.CCACHE_DIR }}
           key: ccache-${{ runner.os }}-${{ github.ref_name }}-${{ github.event.inputs.FILE }}-${{ env.BUILD_METHOD }}-${{ github.event.inputs.FAST_BUILD == 'true' && 'alpha' || 'beta' }}-17.0
 
       - name: Save ThinLTO Cache
-        if: ${{ github.event.inputs.BUILD_NOCACHE == 'false' && github.event.inputs.FAST_BUILD == 'true' && steps.cache_size_check.outputs.thinlto_save == 'true' && steps.restore-thinlto.outputs.cache-hit != 'true' }}
+        if: ${{ !cancelled() && github.event.inputs.BUILD_NOCACHE == 'false' && github.event.inputs.FAST_BUILD == 'true' && steps.cache_size_check.outputs.thinlto_save == 'true' && steps.restore-thinlto.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@v5
         with:
           path: ${{ github.workspace }}/kernel_workspace/.thinlto-cache

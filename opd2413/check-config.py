@@ -5,7 +5,7 @@ from pathlib import Path
 config = dict(line.split('=', 1) for line in Path(sys.argv[1]).read_text().splitlines()
               if line.startswith('CONFIG_') and '=' in line)
 required = {
-    'KSU': 'y', 'KPM': 'y', 'KSU_SUSFS': 'y',
+    'KSU': 'y', 'KPM': 'y', 'KSU_SUSFS': 'y', 'KSU_SUSFS_PRIORITY_UID_FILTER': 'y',
     'NETFILTER': 'y', 'IP_SET': 'y', 'IP6_NF_NAT': 'y',
     'IP6_NF_TARGET_MASQUERADE': 'y', 'TCP_CONG_BBR3': 'y',
     'SYSVIPC': 'y', 'PID_NS': 'y', 'IPC_NS': 'y', 'POSIX_MQUEUE': 'y',

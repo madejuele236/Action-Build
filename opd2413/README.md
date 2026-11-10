@@ -33,3 +33,12 @@ Sources:
 - https://github.com/OnePlusOSS/kernel_manifest/blob/oneplus/sm8750/oneplus_pad_2_pro_b.xml
 - https://www.droidspaces.org/docs/kernel-configuration.html
 - https://www.droidspaces.org/docs/installation-android.html
+
+## Stable SUSFS integration fix
+
+The first compile passed 28 resolved configuration checks, then failed because
+SukiSU calls the SUSFS priority UID filter API but omits its Kconfig entry.
+The small Kconfig patch restores the definition from the official SUSFS patch,
+and the resolved-option check now includes it. Both component revisions are
+pinned in `components.json` and `inputs.json`; SUSFS_DEV remains false.
+Compilation caches are preserved after failures to reduce the cost of retries.
